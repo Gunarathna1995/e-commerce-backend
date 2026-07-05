@@ -6,11 +6,12 @@ from core.database import get_db
 from core.security import decode_access_token
 from models.user import User
 
-bearer_schema = HTTPBearer()
+bearer_scheme = HTTPBearer()
+bearer_scheme_optional = HTTPBearer(auto_error = False)
 
 
 def get_current_user(
-        credentials:HTTPAuthorizationCredentials = Depends(bearer_schema),
+        credentials:HTTPAuthorizationCredentials = Depends(bearer_scheme),
         db = Depends(get_db)
 ):
     token = credentials.credentials
@@ -47,3 +48,37 @@ def require_admin(user:User = Depends(get_current_user)):
             detail="Admin Only"
         )
     return user
+
+def get_current_user_optional(
+        credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme_optional),
+        db = Depends(get_db)
+):
+    
+    if credentials is None:
+        return None
+    
+    token = credentials.credentials
+    payload = decode_access_token(token)
+
+    if payload is None:
+        raise HTTPException(
+            status_code = status.HTTP_401_UNAUTHORIZED,
+            detail = "Invalid or expired token"
+        )
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(
+            status_code= status.HTTP_401_UNAUTHORIZED,
+            detail = "Invalid Token"
+        )
+    
+    user = db.scalar(select(User).where(User.id == int(user_id)))
+    if user is None:
+        raise HTTPException(
+            status_code = status.HTTP_401_UNAUTHORIZED,
+            detail = "User not found"
+        )
+    
+    return user
+    

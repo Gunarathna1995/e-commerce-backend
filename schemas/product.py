@@ -37,3 +37,12 @@ class ProductListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+class RecommendationItem(BaseModel):
+    product:ProductResponse
+    score: float
+
+class RecommendationResponse(BaseModel):
+    source: str
+    items: list[RecommendationItem]

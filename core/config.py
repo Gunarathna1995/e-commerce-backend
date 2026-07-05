@@ -18,3 +18,10 @@ if DATABASE_URL.startswith("postgresql://"):
 SECRET_KEY = os.getenv("SECRET_key","a91e1c98b98a01971c1f5d4f172def087b0834252fb8d9f8295fc03e585dc79f")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES",60))
+
+HF_CHAT_MODEL = os.getenv("HF_CHAT_MODEL","deepseek-ai/DeepSeek-V4-Pro").strip()
+HF_API_TOKEN = os.getenv("HF_API_TOKEN","").strip()
+HF_CHAT_URL = os.getenv("HF_CHAT_URL","https://router.huggingface.co/v1/chat/completions").strip()
+HF_RECOMMENDER_MODEL = os.getenv("HF_RECOMMENDER_MODEL","sentence-transformers/all-MiniLM-L6-v2").strip()
+_raw_cors = os.getenv("CORS_ORIGINS","http://localhost:3000").strip()
+CORS_ORIGINS = [origin.strip() for origin in _raw_cors.split(",") if origin.strip()]

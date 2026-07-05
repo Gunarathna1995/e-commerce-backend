@@ -2,11 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select,func
 
 from core.database import get_db
-from core.deps import require_admin
+from core.deps import require_admin, get_current_user_optional
 from models.product import Product
 from models.user import User
 
-from schemas.product import ProductCreate, ProductResponse, ProductListResponse, ProductUpdate
+from schemas.product import ProductCreate, ProductResponse, ProductListResponse, ProductUpdate, RecommendationItem, RecommendationResponse
+
+from services.recommendation_service import(
+    generate_customer_recommendations,
+    generate_guest_recommendations
+)
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -104,3 +109,30 @@ def delete_product(
     db.commit()
 
     return {"message": "Product deleted successfuly"}
+
+@router.get("/recommendations/me", response_model=RecommendationResponse)
+def recommend_for_customer(
+    top_k: int = Query(5, ge=1, le=20),
+    user: User | None = Depends(get_current_user_optional),
+    db = Depends(get_db)
+):
+    try:
+        # පරිශීලකයා ලොග් වී නැති නම් (Guest) - මෙම ශ්‍රිතය පාවිච්චි කරන්න
+        if user is None:
+            source, scored_items = generate_guest_recommendations(db=db, top_k=top_k)
+        
+        # පරිශීලකයා සිටී නම් - මෙම ශ්‍රිතය පාවිච්චි කරන්න
+        else:
+            source, scored_items = generate_customer_recommendations(db=db, user_id=user.id, top_k=top_k)
+    
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_503_UNAVAILABLE, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"chat model error: {exc}") from exc
+    
+    items = [
+        RecommendationItem(product=product, score=round(score, 4))
+        for product, score in scored_items
+    ]
+
+    return RecommendationResponse(source=source, items=items)
